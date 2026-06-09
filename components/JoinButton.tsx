@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 type Props = {
-  eventId: number;
+  eventId: string;
 };
 
 export default function JoinButton({
@@ -13,47 +13,92 @@ export default function JoinButton({
   const [loading, setLoading] =
     useState(false);
 
-  async function joinEvent() {
-    try {
-      setLoading(true);
+  const [joined, setJoined] =
+    useState(false);
 
-      const name = prompt(
-        "Enter your name"
-      );
+  useEffect(() => {
+    checkJoined();
+  }, []);
 
-      if (!name) return;
+  async function checkJoined() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("event_attendees")
+      .select("*")
+      .eq("event_id", eventId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (data) {
+      setJoined(true);
+    }
+  }
+
+  async function handleJoin() {
+    setLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("Please login first");
+      setLoading(false);
+      return;
+    }
+
+    if (joined) {
+      const { error } = await supabase
+        .from("event_attendees")
+        .delete()
+        .eq("event_id", eventId)
+        .eq("user_id", user.id);
+
+      if (error) {
+        alert(error.message);
+      } else {
+        setJoined(false);
+      }
+    } else {
       const { error } = await supabase
         .from("event_attendees")
         .insert([
           {
             event_id: eventId,
-            attendee_name: name,
+            user_id: user.id,
           },
         ]);
 
       if (error) {
         alert(error.message);
-        return;
+      } else {
+        setJoined(true);
       }
-
-      alert("Joined successfully!");
-
-      window.location.reload();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   }
 
   return (
     <button
-      onClick={joinEvent}
+      onClick={handleJoin}
       disabled={loading}
-      className="mt-4 bg-green-600 text-white px-4 py-2 rounded"
+      className={`mt-4 px-4 py-2 rounded text-white ${
+        joined
+          ? "bg-red-600"
+          : "bg-green-600"
+      }`}
     >
-      {loading ? "Joining..." : "Join Event"}
+      {loading
+        ? "Loading..."
+        : joined
+        ? "Leave Event"
+        : "Join Event"}
     </button>
   );
 }
