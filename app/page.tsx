@@ -88,7 +88,6 @@ export default async function Home() {
 </>
 <JoinButton
   eventId={event.id}
-  attendees={event.attendees || 0}
 />
 
           <p className="mt-2">
