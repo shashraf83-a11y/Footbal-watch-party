@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "../lib/supabase";
 
 type Props = {
@@ -13,35 +13,10 @@ export default function JoinButton({
   const [loading, setLoading] =
     useState(false);
 
-  const [joined, setJoined] =
-    useState(false);
-
-  useEffect(() => {
-    checkJoined();
-  }, []);
-
-  async function checkJoined() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("event_attendees")
-      .select("*")
-      .eq("event_id", eventId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (data) {
-      setJoined(true);
-    }
-  }
-
-  async function handleJoin() {
+  async function joinEvent() {
     setLoading(true);
 
+    // Get logged in user
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -52,52 +27,51 @@ export default function JoinButton({
       return;
     }
 
-    if (joined) {
-      const { error } = await supabase
+    // Check if already joined
+    const { data: existingJoin } =
+      await supabase
         .from("event_attendees")
-        .delete()
+        .select("*")
         .eq("event_id", eventId)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .single();
 
-      if (error) {
-        alert(error.message);
-      } else {
-        setJoined(false);
-      }
-    } else {
-      const { error } = await supabase
-        .from("event_attendees")
-        .insert([
-          {
-            event_id: eventId,
-            user_id: user.id,
-          },
-        ]);
-
-      if (error) {
-        alert(error.message);
-      } else {
-        setJoined(true);
-      }
+    if (existingJoin) {
+      alert("You already joined this event");
+      setLoading(false);
+      return;
     }
 
+    // Insert join
+    const { error } = await supabase
+      .from("event_attendees")
+      .insert([
+        {
+          event_id: eventId,
+          user_id: user.id,
+        },
+      ]);
+
     setLoading(false);
+
+    if (error) {
+      alert(error.message);
+    } else {
+      alert("Joined successfully");
+
+      // Refresh page
+      window.location.reload();
+    }
   }
 
   return (
     <button
-      onClick={handleJoin}
+      onClick={joinEvent}
       disabled={loading}
-      className={`mt-4 px-4 py-2 rounded text-white ${
-        joined
-          ? "bg-red-600"
-          : "bg-green-600"
-      }`}
+      className="bg-green-600 text-white px-4 py-2 rounded mt-4"
     >
       {loading
-        ? "Loading..."
-        : joined
-        ? "Leave Event"
+        ? "Joining..."
         : "Join Event"}
     </button>
   );
