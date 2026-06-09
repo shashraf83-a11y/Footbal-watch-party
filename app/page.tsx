@@ -99,7 +99,7 @@ export default async function Home() {
             </p>
           )}
 
-          {event.max_attendees && (
+          {event.max_attendees > 0 && (
             <p>
               👥 Max Attendees:{" "}
               {event.max_attendees}
