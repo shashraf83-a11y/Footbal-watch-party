@@ -5,21 +5,38 @@ import { supabase } from "../lib/supabase";
 export default async function Home() {
   const { data: events, error } = await supabase
     .from("events")
-    .select(`
-  *,
-  event_attendees(count)
-`)
+    .select("*")
     .order("created_at", { ascending: false });
+
+  const eventsWithCounts = await Promise.all(
+    (events || []).map(async (event) => {
+      const { count } = await supabase
+        .from("event_attendees")
+        .select("*", {
+          count: "exact",
+          head: true,
+        })
+        .eq("event_id", event.id);
+
+      return {
+        ...event,
+        attendeeCount: count || 0,
+      };
+    })
+  );
 
   return (
     <main className="p-10">
       <Header />
+
       <h1 className="text-4xl font-bold">
         ⚽ Mumbai Football Watch Party
       </h1>
 
       <p className="mt-4 text-lg">
-        Discover football screenings, join fan groups, and watch matches with fellow fans across Mumbai.
+        Discover football screenings,
+        join fan groups,
+        and watch matches with fellow fans across Mumbai.
       </p>
 
       <a
@@ -33,62 +50,70 @@ export default async function Home() {
         Upcoming Events
       </h2>
 
-      {events?.length === 0 && (
-        <p className="mt-4">No events yet.</p>
+      {eventsWithCounts.length === 0 && (
+        <p className="mt-4">
+          No events yet.
+        </p>
       )}
 
-      {events?.map((event) => (
+      {eventsWithCounts.map((event) => (
         <div
           key={event.id}
           className="border rounded p-4 mt-4"
         >
           {event.image_url && (
-  <img
-    src={event.image_url}
-    alt={event.title}
-    className="w-full h-64 object-cover rounded mb-4"
-  />
-)}
+            <img
+              src={event.image_url}
+              alt={event.title}
+              className="w-full h-64 object-cover rounded mb-4"
+            />
+          )}
+
           <h3 className="font-bold text-xl">
             {event.title}
           </h3>
 
           <p>📍 {event.venue}</p>
 
-<p>
-  📅{" "}
-  {new Date(event.event_date).toLocaleDateString()}
-</p>
+          <p>
+            📅{" "}
+            {new Date(
+              event.event_date
+            ).toLocaleDateString()}
+          </p>
 
-<p>
-  ⏰{" "}
-  {new Date(
-    `1970-01-01T${event.event_time}`
-  ).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}
-</p>
+          <p>
+            ⏰{" "}
+            {new Date(
+              `1970-01-01T${event.event_time}`
+            ).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
 
-{event.organizer_name && (
-  <p>👤 Organizer: {event.organizer_name}</p>
-)}
+          {event.organizer_name && (
+            <p>
+              👤 Organizer:{" "}
+              {event.organizer_name}
+            </p>
+          )}
 
-<>
-  {event.max_attendees && (
-    <p>
-      👥 Max Attendees: {event.max_attendees}
-    </p>
-  )}
-<p>
-  🙋 Attendees:
-  {" "}
-  {event.event_attendees[0]?.count || 0}
-</p>
-</>
-<JoinButton
-  eventId={event.id}
-/>
+          {event.max_attendees && (
+            <p>
+              👥 Max Attendees:{" "}
+              {event.max_attendees}
+            </p>
+          )}
+
+          <p>
+            🙋 Attendees:{" "}
+            {event.attendeeCount}
+          </p>
+
+          <JoinButton
+            eventId={event.id}
+          />
 
           <p className="mt-2">
             {event.description}
